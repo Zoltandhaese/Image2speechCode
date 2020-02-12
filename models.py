@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import torchvision
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #Zoltan cuda ("mac") is not available at the moment. Will try to fix it.
 
 
 class pBLSTMLayer(nn.Module):
@@ -51,7 +51,7 @@ class Encoder(nn.Module):
 
 class Attention(nn.Module):
     """
-    Attention Network.
+    Attention Network. Nothing changed with the previous version. At tthis moment on
     """
 
     def __init__(self, encoder_dim, decoder_dim, attention_dim):
@@ -86,7 +86,7 @@ class Attention(nn.Module):
 
 class DecoderWithAttention(nn.Module):
     """
-    Decoder.
+    Decoder. "Still the same as the old model. We have to introduce the transformer model if we want to mimic the xnmt output.
     """
 
     def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, encoder_dim=512, dropout=0.5):

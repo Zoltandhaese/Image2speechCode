@@ -76,7 +76,7 @@ def main(args):
         decoder.load_state_dict(torch.load(args.decoder_path))
 
 
-    encoder_parameter = [p for p in encoder.parameters() if p.requires_grad]
+    encoder_parameter = [p for p in encoder.parameters() if p.requires_grad] # selecting every parameter.
     decoder_parameter = [p for p in decoder.parameters() if p.requires_grad]
     trainable_parameter = encoder_parameter + decoder_parameter
     optimizer = torch.optim.Adam(trainable_parameter,lr=args.decoder_lr)
@@ -93,7 +93,7 @@ def main(args):
     if args.CUDA:
         criterion = nn.CrossEntropyLoss().cuda()
     else:
-        criterion = nn.CrossEntropyLoss()
+        criterion = nn.CrossEntropyLoss() #gewoon naar cpu dan
     
     train_loader = torch.utils.data.DataLoader(
         CaptionDataset(args.data_path, split='TRAIN'),
@@ -151,7 +151,7 @@ def train(train_loader,encoder, decoder, criterion,decoder_optimizer, epoch,args
     :param decoder_optimizer: optimizer to update decoder's weights
     :param epoch: epoch number
     """
-    torch.set_grad_enabled(True)
+    torch.set_grad_enabled(True) #Why question 
     encoder.train()
     decoder.train()
 
@@ -174,7 +174,7 @@ def train(train_loader,encoder, decoder, criterion,decoder_optimizer, epoch,args
             caplens = caplens.cuda()      
        
         encoded_imgs = encoder(imgs)
-        scores, caps_sorted, decode_lengths, alphas, sort_ind, recover_ind = decoder(encoded_imgs, caps, caplens)
+        scores, caps_sorted, decode_lengths, alphas, sort_ind, recover_ind = decoder(encoded_imgs, caps, caplens) #A lot of information coming from the decoder.
 
         # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
         targets = caps_sorted[:, 1:]
