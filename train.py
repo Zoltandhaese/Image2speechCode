@@ -37,7 +37,7 @@ parser.add_argument('--alpha_c', default=1.0, type=float)
 parser.add_argument('--print_freq', type = int, default= 100)
 
 parser.add_argument('--input_feature_dim',type = int, default= 512)
-parser.add_argument('--encoder_hidden_dim',type = int, default= 128)
+parser.add_argument('--encoder_hidden_dim',type = int, default= 256)
 parser.add_argument('--encoder_layer',type = int, default= 2)
 parser.add_argument('--rnn_unit', default= 'LSTM')
 parser.add_argument('--dropout_rate',type = float, default= 0.0)
