@@ -84,6 +84,34 @@ class Attention(nn.Module):
         return attention_weighted_encoding, alpha
 
 
+class Transform(nn.Module):
+    """
+        transform for the decoder Network. three layered mlp.
+        """
+    def __init__(self, trans_input_dim, trans_hidden_dim , trans_output_dim):
+        """
+            In the constructor we construct three nn.Linear instances that we will use
+            in the forward pass: input layer, middle layer and output layer; This linear layers are the same as one layer of the multilayer perceptron.
+            """
+        super(Transform, self).__init__()
+        self.input_linear = torch.nn.Linear(trans_input_dim, trans_hidden_dim)
+        self.middle_linear = torch.nn.Linear(trans_hidden_dim, trans_hidden_dim)
+        self.output_linear = torch.nn.Linear(trans_hidden_dim, trans_output_dim)
+        self.sigmoid = nn.Sigmoid()
+    
+    def forward(self, x):
+        """
+            For the forward pass of the model, we choose 3
+            and reuse the middle_linear Module that many times to compute hidden layer
+            representations.
+            """
+        
+        sigmoid = self.sigmoid(self.input_linear(x))
+        for i in range(3):
+            sigmoid = self.sigmoid(self.middle_linear(sigmoid))
+        y = self.output_linear(sigmoid)
+        return y
+
 class DecoderWithAttention(nn.Module):
     """
     Decoder. "Still the same as the old model. We have to introduce the transformer model if we want to mimic the xnmt output.
