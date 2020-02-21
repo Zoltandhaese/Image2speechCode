@@ -31,7 +31,15 @@ class Encoder(nn.Module):
         # Listener RNN layer
         self.encoder_layer = encoder_layer
         assert self.encoder_layer>=1,'Listener should have at least 1 layer'
+        #self.pLSTM_layer0 = torch.nn.LSTM(input_feature_dim, encoder_hidden_dim)
+        #self.pLSTM_layer0 = pBLSTMLayer(input_feature_dim,encoder_hidden_dim, rnn_unit=rnn_unit, dropout_rate=dropout_rate)
         
+        # for i in range(1,self.encoder_layer): #Here we go to 3.
+        # if i==1:
+            #       self.pLSTM_layer1 = pBLSTMLayer(input_feature_dim,encoder_hidden_dim, rnn_unit=rnn_unit, dropout_rate=dropout_rate)
+            # else:
+            #     setattr(self, 'pLSTM_layer'+str(i), pBLSTMLayer(encoder_hidden_dim*2,encoder_hidden_dim, rnn_unit=rnn_unit, dropout_rate=dropout_rate))
+
         self.pLSTM_layer0 = pBLSTMLayer(input_feature_dim,encoder_hidden_dim, rnn_unit=rnn_unit, dropout_rate=dropout_rate)
 
         for i in range(1,self.encoder_layer):

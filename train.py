@@ -25,7 +25,7 @@ parser.add_argument('--decoder_dim',type=int,default=512)
 parser.add_argument('--dropout', type = float, default= 0.2)
 
 parser.add_argument('--start_epoch', type = int, default= 0)
-parser.add_argument('--epochs', type = int, default= 10,help=' number of epochs to train for (if early stopping is not triggered)')
+parser.add_argument('--epochs', type = int, default= 3,help=' number of epochs to train for (if early stopping is not triggered)')
 parser.add_argument('--batch_size', type = int, default= 60)
 
 parser.add_argument('--workers', type = int, default= 0, help='for data-loading')
