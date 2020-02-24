@@ -25,7 +25,7 @@ parser.add_argument('--decoder_dim',type=int,default=512)
 parser.add_argument('--dropout', type = float, default= 0.2)
 
 parser.add_argument('--start_epoch', type = int, default= 0)
-parser.add_argument('--epochs', type = int, default= 3,help=' number of epochs to train for (if early stopping is not triggered)')
+parser.add_argument('--epochs', type = int, default= 10,help=' number of epochs to train for (if early stopping is not triggered)')
 parser.add_argument('--batch_size', type = int, default= 60)
 
 parser.add_argument('--workers', type = int, default= 0, help='for data-loading')
@@ -78,8 +78,9 @@ def main(args):
 
     encoder_parameter = [p for p in encoder.parameters() if p.requires_grad] # selecting every parameter.
     decoder_parameter = [p for p in decoder.parameters() if p.requires_grad]
-    trainable_parameter = encoder_parameter + decoder_parameter
-    optimizer = torch.optim.Adam(trainable_parameter,lr=args.decoder_lr)
+    # trainable_parameter = encoder_parameter + decoder_parameter
+    encoder_optimizer = torch.optim.Adam(encoder_parameter,lr=args.decoder_lr)
+    decoder_optimizer = torch.optim.Adam(decoder_parameter,lr=args.decoder_lr)
     # decoder_optimizer = torch.optim.Adam(
     # params=filter(lambda p: p.requires_grad, decoder.parameters()),
     #    
@@ -109,8 +110,9 @@ def main(args):
         loss = train(train_loader=train_loader, 
               encoder = encoder,              
               decoder=decoder,
-              criterion=criterion,              
-              decoder_optimizer=optimizer,
+              criterion=criterion,  
+              encoder_optimizer=encoder_optimizer,
+              decoder_optimizer=decoder_optimizer,           
               epoch=epoch,args=args)
 
         # One epoch's validation
@@ -130,16 +132,19 @@ def main(args):
 
         with open(save_path, "a") as file:
             file.write(info)    
+       
         if bleu4>best_bleu4:
             best_bleu4=bleu4
-            torch.save(encoder.state_dict(),'model/encoder.pth')
-            torch.save(decoder.state_dict(),'model/decoder.pth')
+            # torch.save(encoder.state_dict(),'model/encoder.pth')
+            # torch.save(decoder.state_dict(),'model/decoder.pth')
+            save_checkpoint(epoch, encoder, decoder, encoder_optimizer,
+                            decoder_optimizer, bleu4)
 
 
 
             
 
-def train(train_loader,encoder, decoder, criterion,decoder_optimizer, epoch,args):
+def train(train_loader,encoder, decoder, criterion,encoder_optimizer,decoder_optimizer, epoch,args):
     """
     Performs one epoch's training.
 
@@ -191,6 +196,7 @@ def train(train_loader,encoder, decoder, criterion,decoder_optimizer, epoch,args
         loss += args.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
 
         # Back prop.
+        encoder_optimizer.zero_grad()
         decoder_optimizer.zero_grad()
        
         loss.backward()
@@ -199,6 +205,7 @@ def train(train_loader,encoder, decoder, criterion,decoder_optimizer, epoch,args
         # if grad_clip is not None:
         #     clip_gradient(decoder_optimizer, grad_clip)            
         # # Update weights
+        encoder_optimizer.step()
         decoder_optimizer.step()        
 
         # Keep track of metrics

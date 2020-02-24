@@ -31,15 +31,7 @@ class Encoder(nn.Module):
         # Listener RNN layer
         self.encoder_layer = encoder_layer
         assert self.encoder_layer>=1,'Listener should have at least 1 layer'
-        #self.pLSTM_layer0 = torch.nn.LSTM(input_feature_dim, encoder_hidden_dim)
-        #self.pLSTM_layer0 = pBLSTMLayer(input_feature_dim,encoder_hidden_dim, rnn_unit=rnn_unit, dropout_rate=dropout_rate)
         
-        # for i in range(1,self.encoder_layer): #Here we go to 3.
-        # if i==1:
-            #       self.pLSTM_layer1 = pBLSTMLayer(input_feature_dim,encoder_hidden_dim, rnn_unit=rnn_unit, dropout_rate=dropout_rate)
-            # else:
-            #     setattr(self, 'pLSTM_layer'+str(i), pBLSTMLayer(encoder_hidden_dim*2,encoder_hidden_dim, rnn_unit=rnn_unit, dropout_rate=dropout_rate))
-
         self.pLSTM_layer0 = pBLSTMLayer(input_feature_dim,encoder_hidden_dim, rnn_unit=rnn_unit, dropout_rate=dropout_rate)
 
         for i in range(1,self.encoder_layer):
@@ -91,34 +83,6 @@ class Attention(nn.Module):
 
         return attention_weighted_encoding, alpha
 
-
-class Transform(nn.Module):
-    """
-        transform for the decoder Network. three layered mlp.
-        """
-    def __init__(self, trans_input_dim, trans_hidden_dim , trans_output_dim):
-        """
-            In the constructor we construct three nn.Linear instances that we will use
-            in the forward pass: input layer, middle layer and output layer; This linear layers are the same as one layer of the multilayer perceptron.
-            """
-        super(Transform, self).__init__()
-        self.input_linear = torch.nn.Linear(trans_input_dim, trans_hidden_dim)
-        self.middle_linear = torch.nn.Linear(trans_hidden_dim, trans_hidden_dim)
-        self.output_linear = torch.nn.Linear(trans_hidden_dim, trans_output_dim)
-        self.sigmoid = nn.Sigmoid()
-    
-    def forward(self, x):
-        """
-            For the forward pass of the model, we choose 3
-            and reuse the middle_linear Module that many times to compute hidden layer
-            representations.
-            """
-        
-        sigmoid = self.sigmoid(self.input_linear(x))
-        for i in range(3):
-            sigmoid = self.sigmoid(self.middle_linear(sigmoid))
-        y = self.output_linear(sigmoid)
-        return y
 
 class DecoderWithAttention(nn.Module):
     """
@@ -223,7 +187,7 @@ class DecoderWithAttention(nn.Module):
         h, c = self.init_hidden_state(encoder_out)  # (batch_size, decoder_dim)
 
         # We won't decode at the <end> position, since we've finished generating as soon as we generate <end>
-        # So, decoding lengths are actual lengths - 1
+        # So, decoding lengths are actual lengths - 1        
         decode_lengths = (caption_lengths - 1).tolist()
 
         # Create tensors to hold word predicion scores and alphas
