@@ -9,12 +9,19 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 # Parameters
-data_folder = '/media/ssd/caption data'  # folder with data files saved by create_input_files.py
-data_name = 'coco_5_cap_per_img_5_min_word_freq'  # base name shared by data files
-checkpoint = '../BEST_checkpoint_coco_5_cap_per_img_5_min_word_freq.pth.tar'  # model checkpoint
-word_map_file = '/media/ssd/caption data/WORDMAP_coco_5_cap_per_img_5_min_word_freq.json'  # word map, ensure it's the same the data was encoded with and the model was trained with
+batch_size = 1
+workers = 0
+
+data_path = '../dataset'  # folder with data files saved by create_input_files.py
+# data_name = 'coco_5_cap_per_img_5_min_word_freq'  # base name shared by data files
+checkpoint = 'checkpoint_0.pth.tar'  # model checkpoint
+word_map_file =  data_path + '/' + 'caps_dic.pickle' # word map, ensure it's the same the data was encoded with and the model was trained with
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
+
+tophones_path = data_path + '/' + 'tophone_dic.pickle'
+with open(tophones_path,'rb') as f:
+    tophone = pickle.load(f)
 
 # Load model
 checkpoint = torch.load(checkpoint)
@@ -26,10 +33,12 @@ encoder = encoder.to(device)
 encoder.eval()
 
 # Load word map (word2ix)
-with open(word_map_file, 'r') as j:
-    word_map = json.load(j)
+with open(word_map_file, 'rb') as f:
+    word_map = pickle.load(f)
 rev_word_map = {v: k for k, v in word_map.items()}
 vocab_size = len(word_map)
+
+
 
 # Normalization transform
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -44,10 +53,13 @@ def evaluate(beam_size):
     :return: BLEU-4 score
     """
     # DataLoader
-    loader = torch.utils.data.DataLoader(
-        CaptionDataset(data_folder, data_name, 'TEST', transform=transforms.Compose([normalize])),
-        batch_size=1, shuffle=True, num_workers=1, pin_memory=True)
+    # loader = torch.utils.data.DataLoader(
+    #     CaptionDataset(data_folder, data_name, 'TEST', transform=transforms.Compose([normalize])),
+    #     batch_size=1, shuffle=True, num_workers=1, pin_memory=True)
 
+    loader = torch.utils.data.DataLoader(
+        CaptionDataset(data_path,split='VAL'),
+        batch_size=batch_size, shuffle=False, num_workers=workers,collate_fn=pad_collate_train, pin_memory=True)
     # TODO: Batched Beam Search
     # Therefore, do not use a batch_size greater than 1 - IMPORTANT!
 
@@ -58,7 +70,7 @@ def evaluate(beam_size):
     hypotheses = list()
 
     # For each image
-    for i, (image, caps, caplens, allcaps) in enumerate(
+    for i, (image, caps, caplens) in enumerate(
             tqdm(loader, desc="EVALUATING AT BEAM SIZE " + str(beam_size))):
 
         k = beam_size
@@ -67,6 +79,7 @@ def evaluate(beam_size):
         image = image.to(device)  # (1, 3, 256, 256)
 
         # Encode
+        """
         encoder_out = encoder(image)  # (1, enc_image_size, enc_image_size, encoder_dim)
         enc_image_size = encoder_out.size(1)
         encoder_dim = encoder_out.size(3)
@@ -77,7 +90,8 @@ def evaluate(beam_size):
 
         # We'll treat the problem as having a batch size of k
         encoder_out = encoder_out.expand(k, num_pixels, encoder_dim)  # (k, num_pixels, encoder_dim)
-
+        """
+        encoder_out = encoder(image)
         # Tensor to store top k previous words at each step; now they're just <start>
         k_prev_words = torch.LongTensor([[word_map['<start>']]] * k).to(device)  # (k, 1)
 
@@ -157,11 +171,25 @@ def evaluate(beam_size):
         seq = complete_seqs[i]
 
         # References
+        """
         img_caps = allcaps[0].tolist()
         img_captions = list(
             map(lambda c: [w for w in c if w not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}],
                 img_caps))  # remove <start> and pads
-        references.append(img_captions)
+        references.append(img_captions)       """
+      
+        
+        # cap = caps
+        phone_cap = [tophone[str(num)] for num in caps]    #[:length] 
+        new_phone_cap = [tophone[str(num)] + ' ' for num in caps]  #[:length] 
+        # start_indx = phone_cap.index('<start>')+1
+        # end_indx = phone_cap.index('<end>')-1        
+        # phone_cap = phone_cap[start_indx:end_indx]
+        # new_phone_cap = new_phone_cap[start_indx:end_indx]
+
+        references.append([phone_cap])
+
+
 
         # Hypotheses
         hypotheses.append([w for w in seq if w not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}])
