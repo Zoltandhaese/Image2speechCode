@@ -72,12 +72,10 @@ def clip_gradient(optimizer, grad_clip):
                 param.grad.data.clamp_(-grad_clip, grad_clip)
 
 
-def save_checkpoint(data_name, epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer, decoder_optimizer,
-                    bleu4, is_best):
+def save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer,
+                    bleu4):
     """
     Saves model checkpoint.
-
-    :param data_name: base name of processed dataset
     :param epoch: epoch number
     :param epochs_since_improvement: number of epochs since last improvement in BLEU-4 score
     :param encoder: encoder model
@@ -88,17 +86,13 @@ def save_checkpoint(data_name, epoch, epochs_since_improvement, encoder, decoder
     :param is_best: is this checkpoint the best so far?
     """
     state = {'epoch': epoch,
-             'epochs_since_improvement': epochs_since_improvement,
              'bleu-4': bleu4,
              'encoder': encoder,
              'decoder': decoder,
              'encoder_optimizer': encoder_optimizer,
              'decoder_optimizer': decoder_optimizer}
-    filename = 'checkpoint_' + data_name + '.pth.tar'
+    filename = 'checkpoint_' + str(epoch) + '.pth.tar'
     torch.save(state, filename)
-    # If this checkpoint is the best so far, store a copy so it doesn't get overwritten by a worse checkpoint
-    if is_best:
-        torch.save(state, 'BEST_' + filename)
 
 
 class AverageMeter(object):
@@ -198,7 +192,7 @@ def validate(val_loader,encoder, decoder, criterion,best_bleu,args):
             scores, caps_sorted, decode_lengths, alphas, sort_ind, recover_ind = decoder(embedded_img, caps, caplens)
 
             # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
-            targets = caps_sorted[:, 1:]
+            targets = caps_sorted[:,1:]
 
             # Remove timesteps that we didn't decode at, or are pads
             # pack_padded_sequence is an easy trick to do this
@@ -239,16 +233,21 @@ def validate(val_loader,encoder, decoder, criterion,best_bleu,args):
                 img_caps = allcaps[j][:, 1:]              
                 references.append(img_caps)
             """
-            caps_n = caps_sorted[:, 1:]            
+            caps_n = caps_sorted[:,1:]          
             
-            batch_caps = caps_sorted[:, 1:].squeeze(-1).cpu()    #.tolist()    
+            batch_caps = caps_sorted[:,1:].squeeze(-1).cpu()    #.tolist()    
             batch_caps = batch_caps[recover_ind,:].tolist()  
             lengths = np.array(decode_lengths)[recover_ind.data.cpu()].tolist()   
             for i in range(len(batch_caps)):
                 cap = batch_caps[i]
                 length = lengths[i]               
-                phone_cap = [tophone[str(num)] for num in cap if num != 0 and num !=52]   #[:length] 
-                new_phone_cap = [tophone[str(num)] + ' ' for num in cap if num != 0 and num !=52]   #[:length] 
+                phone_cap = [tophone[str(num)] for num in cap if num!=0 and num!=52 and num!=53]    #[:length] 
+                new_phone_cap = [tophone[str(num)] + ' ' for num in cap if num!=0 and num!=52 and num!=53]  #[:length] 
+                # start_indx = phone_cap.index('<start>')+1
+                # end_indx = phone_cap.index('<end>')-1        
+                # phone_cap = phone_cap[start_indx:end_indx]
+                # new_phone_cap = new_phone_cap[start_indx:end_indx]
+
                 references.append([phone_cap])
                 save_references.append(new_phone_cap)
 
@@ -259,8 +258,18 @@ def validate(val_loader,encoder, decoder, criterion,best_bleu,args):
             new_preds=[]
             save_preds=[]
             for pred in preds:
-                new_pred = [tophone[str(num)] for num in pred if num != 0 and num !=52]  #[:length] 
-                save_pred = [tophone[str(num)] + ' ' for num in pred if num != 0 and num !=52]  #[:length] 
+                new_pred = [tophone[str(num)] for num in pred if num!=0 and num!=52 and num!=53] #[:length] 
+                save_pred = [tophone[str(num)] + ' ' for num in pred if num!=0 and num!=52 and num!=53]  #[:length] 
+                # start_indx = np.where(new_pred==0)+1
+                # start_indx = new_pred.index('<start>')+1 
+                # end_indx = np.where(new_pred==52)-1
+                # end_indx = -1
+                # try:
+                #     end_indx = new_pred.index('<end>') - 1
+                # except:
+                #     pass
+                # new_pred = new_pred[start_indx:end_indx]
+                # save_pred = save_pred[start_indx:end_indx]
                 hypotheses.append(new_pred)
                 save_hypotheses.append(save_pred)
 
