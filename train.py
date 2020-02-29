@@ -16,9 +16,9 @@ parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFo
 #'/media/shawn/data/Data/birds'
 #'/tudelft.net/staff-bulk/ewi/insy/MMC/xinsheng/data/birds'
 parser.add_argument('--CUDA', default= True)
-parser.add_argument('--data_path', type = str, default='../dataset') #
+parser.add_argument('--data_path', type = str, default='dataset') #
 parser.add_argument('--save_path',type = str, default='results')
-parser.add_argument('--word_map_file',type = str, default = '../dataset/caps_dic.pickle')
+parser.add_argument('--word_map_file',type = str, default = 'dataset/caps_dic.pickle')
 parser.add_argument('--emb_dim', type = int, default= 512)
 parser.add_argument('--attention_dim', type = int, default= 512)
 parser.add_argument('--decoder_dim',type=int,default=512)
@@ -176,7 +176,9 @@ def train(train_loader,encoder, decoder, criterion,encoder_optimizer,decoder_opt
         if args.CUDA:
             imgs = imgs.cuda()
             caps = caps.cuda().long()
-            caplens = caplens.cuda()      
+            caplens = caplens.cuda() 
+        else:
+            caps= caps.long()     
        
         encoded_imgs = encoder(imgs)
         scores, caps_sorted, decode_lengths, alphas, sort_ind, recover_ind = decoder(encoded_imgs, caps, caplens) #A lot of information coming from the decoder.

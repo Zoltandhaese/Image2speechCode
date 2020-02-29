@@ -187,6 +187,8 @@ def validate(val_loader,encoder, decoder, criterion,best_bleu,args):
                 imgs = imgs.cuda()
                 caps = caps.cuda().long()
                 caplens = caplens.cuda() 
+            else:
+                caps= caps.long()   
             
             embedded_img = encoder(imgs)
             scores, caps_sorted, decode_lengths, alphas, sort_ind, recover_ind = decoder(embedded_img, caps, caplens)

@@ -12,16 +12,16 @@ from tqdm import tqdm
 batch_size = 1
 workers = 0
 
-data_path = '../dataset'  # folder with data files saved by create_input_files.py
+data_path = 'dataset'  # folder with data files saved by create_input_files.py
 # data_name = 'coco_5_cap_per_img_5_min_word_freq'  # base name shared by data files
 checkpoint = 'checkpoint_0.pth.tar'  # model checkpoint
-word_map_file =  data_path + '/' + 'caps_dic.pickle' # word map, ensure it's the same the data was encoded with and the model was trained with
+word_map_file =  data_path + '/' + 'caps_dic.pickle' # word map, dus word => index, ensure it's the same the data was encoded with and the model was trained with
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
 
 tophones_path = data_path + '/' + 'tophone_dic.pickle'
 with open(tophones_path,'rb') as f:
-    tophone = pickle.load(f)
+    tophone = pickle.load(f)# to phone: getal=> naar een phoneem
 
 # Load model
 checkpoint = torch.load(checkpoint)
@@ -167,8 +167,11 @@ def evaluate(beam_size):
                 break
             step += 1
 
-        i = complete_seqs_scores.index(max(complete_seqs_scores))
-        seq = complete_seqs[i]
+        if len(complete_seqs_scores)>0:
+            i = complete_seqs_scores.index(max(complete_seqs_scores))
+            seq = complete_seqs[i] # zal onze referentie worden.
+        else :
+            seq=[]
 
         # References
         """
@@ -177,26 +180,38 @@ def evaluate(beam_size):
             map(lambda c: [w for w in c if w not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}],
                 img_caps))  # remove <start> and pads
         references.append(img_captions)       """
-      
-        
-        # cap = caps
-        phone_cap = [tophone[str(num)] for num in caps]    #[:length] 
-        new_phone_cap = [tophone[str(num)] + ' ' for num in caps]  #[:length] 
+        # Hypotheses
+        phone_cap = [tophone[str(seq[i])] for i in range(len(seq))]    #de bedoeling is dus om voor de lijst caps, dit is een lijst van nummers om te zetten naar phonemes
+        new_phone_cap = [tophone[str(seq[i])] + ' ' for i in range(len(seq))] 
+        hypotheses.append(phone_cap)
+
+        with open("test_0_e.txt", "a") as f:
+            if (len(new_phone_cap) > 0):
+                for i in range(len(new_phone_cap)-1):
+                    f.write(new_phone_cap[i])
+                f.write(phone_cap[-1]+ "\n")  
+            else:
+                f.write("no results :( " + "\n")  
+
+        #hypotheses.append([w for w in seq if w not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}])
+        num = caps[0]
+        phone_cap = [tophone[str(int(num[i].tolist()[0]))] for i in range(len(num))]    #de bedoeling is dus om voor de lijst caps, dit is een lijst van nummers om te zetten naar phonemes
+        new_phone_cap = [tophone[str(int(num[i].tolist()[0]))] + ' ' for i in range(len(num))]  #[:length] 
         # start_indx = phone_cap.index('<start>')+1
         # end_indx = phone_cap.index('<end>')-1        
         # phone_cap = phone_cap[start_indx:end_indx]
         # new_phone_cap = new_phone_cap[start_indx:end_indx]
 
-        references.append([phone_cap])
-
-
-
-        # Hypotheses
-        hypotheses.append([w for w in seq if w not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}])
+        references.append(phone_cap)
+        
 
         assert len(references) == len(hypotheses)
 
-    # Calculate BLEU-4 scores
+    #mat = np.matrix(hypotheses)
+    #with open('test.txt','wb') as f:
+      #  for line in mat:
+       #     np.savetxt(f, line)
+
     bleu4 = corpus_bleu(references, hypotheses)
 
     return bleu4
