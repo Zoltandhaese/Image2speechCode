@@ -14,7 +14,7 @@ workers = 0
 
 data_path = 'dataset'  # folder with data files saved by create_input_files.py
 # data_name = 'coco_5_cap_per_img_5_min_word_freq'  # base name shared by data files
-checkpoint = 'checkpoint_6.pth.tar'  # model checkpoint
+checkpoint = 'checkpoint_9.pth.tar'  # model checkpoint
 word_map_file =  data_path + '/' + 'caps_dic.pickle' # word map, dus word => index, ensure it's the same the data was encoded with and the model was trained with
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
@@ -51,6 +51,7 @@ def evaluate(beam_size):
 
     references = list()
     hypotheses = list()
+    alphas_complete = list()
 
     # For each image
     for i, (image, caps, caplens) in enumerate(
@@ -74,8 +75,8 @@ def evaluate(beam_size):
         # We'll treat the problem as having a batch size of k
         encoder_out = encoder_out.expand(k, num_pixels, encoder_dim)  # (k, num_pixels, encoder_dim)
         """
-        encoder_out = encoder(image)  # (1, enc_image_size, enc_image_size, encoder_dim)
-        #enc_image_size = encoder_out.size(1)
+        encoder_out = encoder(image)  # (1, enc_image_size, enc_image_size, encoder_dim) # hier verschillen we van hun. Dus we 
+        enc_image_size = encoder_out.size(1)
        
     
         # Tensor to store top k previous words at each step; now they're just <start>
@@ -89,11 +90,11 @@ def evaluate(beam_size):
 
         # Tensor to store top k sequences' alphas; now they're just 1s
         #seqs_alpha = torch.ones(k, 1, enc_image_size, enc_image_size).to(device) 
-
+        seqs_alpha = torch.ones(k, 1, enc_image_size).to(device) 
         # Lists to store completed sequences and scores
         complete_seqs = list()
         complete_seqs_scores = list()
-
+        complete_seqs_alpha = list()
         # Start decoding
         step = 1
         h, c = decoder.init_hidden_state(encoder_out)
@@ -103,9 +104,10 @@ def evaluate(beam_size):
 
             embeddings = decoder.embedding(k_prev_words).squeeze(1)  # (s, embed_dim)
 
-            awe, _ = decoder.attention(encoder_out, h)  # (s, encoder_dim), (s, num_pixels)
+            awe, alpha = decoder.attention(encoder_out, h)  # (s, encoder_dim), (s, num_pixels)
 
-           # alpha = alpha.view(-1, enc_image_size, enc_image_size) 
+            #alpha = alpha.view(-1, enc_image_size, enc_image_size)  # deze view betekent is een transformatie, naar de vorm (enc_image_size, enc_image_size)
+            #(49*49)? => Ja! getest met de debug sessie
 
             gate = decoder.sigmoid(decoder.f_beta(h))  # gating scalar, (s, encoder_dim)
             awe = gate * awe
@@ -134,7 +136,7 @@ def evaluate(beam_size):
             
             # Add new words to sequences
             seqs = torch.cat([seqs[prev_word_inds], next_word_inds.unsqueeze(1)], dim=1)  # (s, step+1)
-            #seqs_alpha = torch.cat([seqs_alpha[prev_word_inds], alpha[prev_word_inds].unsqueeze(1)],dim=1)  # (s, step+1, enc_image_size, enc_image_size)
+            seqs_alpha = torch.cat([seqs_alpha[prev_word_inds], alpha[prev_word_inds].unsqueeze(1)],dim=1)  # (s, step+1, enc_image_size, enc_image_size)
             # Which sequences are incomplete (didn't reach <end>)?
             incomplete_inds = [ind for ind, next_word in enumerate(next_word_inds) if
                                next_word != word_map['<end>']]
@@ -143,7 +145,7 @@ def evaluate(beam_size):
             # Set aside complete sequences
             if len(complete_inds) > 0:
                 complete_seqs.extend(seqs[complete_inds].tolist())
-               # complete_seqs_alpha.extend(seqs_alpha[complete_inds].tolist())
+                complete_seqs_alpha.extend(seqs_alpha[complete_inds].tolist())
                 complete_seqs_scores.extend(top_k_scores[complete_inds])
             k -= len(complete_inds)  # reduce beam length accordingly
 
@@ -151,7 +153,7 @@ def evaluate(beam_size):
             if k == 0:
                 break
             seqs = seqs[incomplete_inds]
-            #seqs_alpha = seqs_alpha[incomplete_inds]
+            seqs_alpha = seqs_alpha[incomplete_inds]
             h = h[prev_word_inds[incomplete_inds]]
             c = c[prev_word_inds[incomplete_inds]]
             encoder_out = encoder_out[prev_word_inds[incomplete_inds]]
@@ -166,29 +168,23 @@ def evaluate(beam_size):
         #if len(complete_seqs_scores)>0:
         i = complete_seqs_scores.index(max(complete_seqs_scores))
         seq = complete_seqs[i] # zal onze referentie worden.
-            #alphas = complete_seqs_alpha[i]
-        #else :
-         #   seq=[]
+        alphas = complete_seqs_alpha[i]
+        alphas_complete.append(alphas)
 
-        # References
-        """
-        img_caps = allcaps[0].tolist()
-        img_captions = list(
-            map(lambda c: [w for w in c if w not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}],
-                img_caps))  # remove <start> and pads
-        references.append(img_captions)       """
+        
+   
         # Hypotheses
         phone_cap = [tophone[str(seq[i])] for i in range(1,len(seq)-1)]    #de bedoeling is dus om voor de lijst caps, dit is een lijst van nummers om te zetten naar phonemes
         new_phone_cap = [tophone[str(seq[i])] + ' ' for i in range(1,len(seq)-1)] 
         hypotheses.append(phone_cap)
 
-        with open("test_e7_l100.txt", "a") as f:
-            if (len(new_phone_cap) > 0):
-                for i in range(len(new_phone_cap)-1):
-                    f.write(new_phone_cap[i])
-                f.write(phone_cap[-1]+ "\n")  
-            else:
-                f.write("no results :( " + "\n")  
+        #with open("test_e6_l100.txt", "a") as f:
+        #    if (len(new_phone_cap) > 0):
+        #        for i in range(len(new_phone_cap)-1):
+        #            f.write(new_phone_cap[i])
+        #        f.write(phone_cap[-1]+ "\n")  
+        #    else:
+        #        f.write("no results :( " + "\n")  
 
         #hypotheses.append([w for w in seq if w not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}])
         
@@ -209,6 +205,8 @@ def evaluate(beam_size):
     #with open('test.txt','wb') as f:
       #  for line in mat:
        #     np.savetxt(f, line)
+    with open("alpha_e9.txt", "wb") as fp:   #Pickling
+              pickle.dump(alphas_complete, fp)
 
     bleu4 = corpus_bleu(references, hypotheses)
 

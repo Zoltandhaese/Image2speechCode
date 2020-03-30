@@ -32,7 +32,7 @@ def caption_image_beam_search(encoder, decoder, image_path, word_map, beam_size=
     :param beam_size: number of sequences to consider at each decode-step
     :return: caption, weights for visualization
     """
-
+    #oude versie!! zoals we hem meegekregen hebben
     k = beam_size
     vocab_size = len(word_map)
 

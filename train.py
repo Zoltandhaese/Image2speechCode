@@ -25,7 +25,7 @@ parser.add_argument('--decoder_dim',type=int,default=512)
 parser.add_argument('--dropout', type = float, default= 0.2)
 
 parser.add_argument('--start_epoch', type = int, default= 0)
-parser.add_argument('--epochs', type = int, default= 50,help=' number of epochs to train for (if early stopping is not triggered)')
+parser.add_argument('--epochs', type = int, default= 10,help=' number of epochs to train for (if early stopping is not triggered)')
 parser.add_argument('--batch_size', type = int, default= 60)
 
 parser.add_argument('--workers', type = int, default= 0, help='for data-loading')
@@ -195,7 +195,7 @@ def train(train_loader,encoder, decoder, criterion,encoder_optimizer,decoder_opt
         loss = criterion(scores, targets.squeeze(1))
 
         # Add doubly stochastic attention regularization
-        loss += args.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
+        #loss += args.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean() # Loss functie is iets aangepast. 
 
         # Back prop.
         encoder_optimizer.zero_grad()
