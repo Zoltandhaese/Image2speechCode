@@ -13,9 +13,7 @@ from nltk.translate.bleu_score import corpus_bleu
 import argparse
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-#'/media/shawn/data/Data/birds'
-#'/tudelft.net/staff-bulk/ewi/insy/MMC/xinsheng/data/birds'
-parser.add_argument('--CUDA', default= True)
+parser.add_argument('--CUDA', default= True )
 parser.add_argument('--data_path', type = str, default='dataset') #
 parser.add_argument('--save_path',type = str, default='results')
 parser.add_argument('--word_map_file',type = str, default = 'dataset/caps_dic.pickle')
@@ -25,7 +23,7 @@ parser.add_argument('--decoder_dim',type=int,default=512)
 parser.add_argument('--dropout', type = float, default= 0.2)
 
 parser.add_argument('--start_epoch', type = int, default= 0)
-parser.add_argument('--epochs', type = int, default= 10,help=' number of epochs to train for (if early stopping is not triggered)')
+parser.add_argument('--epochs', type = int, default= 30,help=' number of epochs to train for (if early stopping is not triggered)')
 parser.add_argument('--batch_size', type = int, default= 60)
 
 parser.add_argument('--workers', type = int, default= 0, help='for data-loading')
@@ -132,12 +130,14 @@ def main(args):
 
         with open(save_path, "a") as file:
             file.write(info)    
-       
-        if bleu4>best_bleu4:
-            best_bleu4=bleu4
+        #print('BLEU4: ' + bleu4)
+        #print('best_bleu4 '+ best_bleu4)
+        #if bleu4>best_bleu4:
+
+        best_bleu4=bleu4
             # torch.save(encoder.state_dict(),'model/encoder.pth')
             # torch.save(decoder.state_dict(),'model/decoder.pth')
-            save_checkpoint(epoch, encoder, decoder, encoder_optimizer,
+        save_checkpoint(epoch, encoder, decoder, encoder_optimizer,
                             decoder_optimizer, bleu4)
 
 
@@ -195,7 +195,7 @@ def train(train_loader,encoder, decoder, criterion,encoder_optimizer,decoder_opt
         loss = criterion(scores, targets.squeeze(1))
 
         # Add doubly stochastic attention regularization
-        #loss += args.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean() # Loss functie is iets aangepast. 
+        loss += args.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean() # Loss functie is iets aangepast. 
 
         # Back prop.
         encoder_optimizer.zero_grad()
