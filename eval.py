@@ -14,11 +14,11 @@ workers = 0
 
 data_path = 'dataset'  # folder with data files saved by create_input_files.py
 # data_name = 'coco_5_cap_per_img_5_min_word_freq'  # base name shared by data files
-checkpoint = 'checkpoint_Bilinear_7.pth.tar'  # model checkpoint
+checkpoint = 'Checkpoint_turn_right_2_8.pth.tar'  # model checkpoint
 word_map_file =  data_path + '/' + 'caps_dic.pickle' # word map, dus word => index, ensure it's the same the data was encoded with and the model was trained with
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
-hypothese_name = "Bilinear_1_7.txt"
+hypothese_name = "Turn_right2_8.txt"
 
 tophones_path = data_path + '/' + 'tophone_dic.pickle' 
 with open(tophones_path,'rb') as f:
@@ -55,28 +55,24 @@ def evaluate(beam_size):
     alphas_complete = list()
     betas_complete = list()
     # For each image
+
     for i, (image, caps, caplens) in enumerate(
             tqdm(loader, desc="EVALUATING AT BEAM SIZE " + str(beam_size))):
 
         k = beam_size
 
         # Move to GPU device, if available
-        image = image.to(device)  # (1, 3, 256, 256)
+        image = image.to(device)  
 
-        # Encode
-        """
-        encoder_out = encoder(image)  # (1, enc_image_size, enc_image_size, encoder_dim)
-        enc_image_size = encoder_out.size(1)
-        encoder_dim = encoder_out.size(3)
-
-        # Flatten encoding
-        encoder_out = encoder_out.view(1, -1, encoder_dim)  # (1, num_pixels, encoder_dim)
-        num_pixels = encoder_out.size(1)
-
-        # We'll treat the problem as having a batch size of k
-        encoder_out = encoder_out.expand(k, num_pixels, encoder_dim)  # (k, num_pixels, encoder_dim)
-        """
+        # Transformation to the right by 196
+        hulp = torch.zeros((1,196,512))
+        for j in range(0,196):
+            new_ind=((j+1)*14 % 197) - 1
+            hulp[0][new_ind]=image[0][j]
+        image=hulp.to(device)
+        
         encoder_out = encoder(image)  # (1, enc_image_size, enc_image_size, encoder_dim) # hier verschillen we van hun. Dus we 
+        
         enc_image_size = encoder_out.size(1)
        
     
@@ -218,8 +214,8 @@ def evaluate(beam_size):
     #with open('test.txt','wb') as f:
     #    for line in mat:
     #        np.savetxt(f, line)
-    #with open("Hugo_idea/beta_e9.txt", "wb") as fp:   #Pickling
-     #         pickle.dump(betas_complete, fp)
+    with open("Alpha_turnright28.txt", "wb") as fp:   #Pickling
+            pickle.dump(alphas_complete, fp)
 
     #bleu4 = corpus_bleu( "results/references.text", hypothese_name)
     #bleu4= bleu_score(hypothese_name, "results/references.text") #

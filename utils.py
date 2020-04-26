@@ -91,7 +91,7 @@ def save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimize
              'decoder': decoder,
              'encoder_optimizer': encoder_optimizer,
              'decoder_optimizer': decoder_optimizer}
-    filename = 'Lange_test' + str(epoch) + '.pth.tar'
+    filename = 'Checkpoint_Concat_' + str(epoch) + '.pth.tar'
     torch.save(state, filename)
 
 

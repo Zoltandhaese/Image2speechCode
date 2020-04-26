@@ -6,7 +6,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #Zoltan cu
 
 
 class pBLSTMLayer(nn.Module):
-    def __init__(self,input_feature_dim,hidden_dim,rnn_unit='LSTM',dropout_rate=0.0):
+    def __init__(self,input_feature_dim,hidden_dim,rnn_unit='LSTM',dropout_rate=0.2):
         super(pBLSTMLayer, self).__init__()
         self.rnn_unit = getattr(nn,rnn_unit.upper())
 
@@ -66,6 +66,7 @@ class MLPAttention(nn.Module):
         self.sigmoid_layer = nn.Linear(decoder_dim, 1)
         self.full_att = nn.Linear(attention_dim, 1)  # linear layer to calculate values to be softmax-ed
         self.relu = nn.ReLU() # Relu function: this can change.
+        self.tanh = nn.Tanh()
         self.softmax = nn.Softmax(dim=1)  # softmax layer to calculate weights
         self.sigmoidB = nn.Sigmoid()
 
@@ -86,9 +87,50 @@ class MLPAttention(nn.Module):
         attention_weighted_encoding = (encoder_out * alpha.unsqueeze(2)).sum(dim=1)  # (batch_size, encoder_dim)
         return attention_weighted_encoding, alpha
 
-class BilinearAttention(nn.Module):
+class NOAttention(nn.Module):
     """
     Attention Network. Nothing changed with the previous version. At tthis moment only MLP attender, not yet Billinear or dotattender
+    """
+
+    def __init__(self, encoder_dim, decoder_dim, attention_dim):
+        """
+        :param encoder_dim: feature size of encoded images=> after bipyramidal encoder this is 49 
+        :param decoder_dim: size of decoder's RNN => normal 512 
+        :param attention_dim: size of the attention network => 512
+        """
+        super(NOAttention, self).__init__() 
+        self.encoder_att = nn.Linear(encoder_dim, attention_dim)  # linear layer to transform bipyramidal to attention input
+        self.decoder_att = nn.Linear(decoder_dim, attention_dim)  # linear layer to transform decoder's output
+        self.sigmoid_layer = nn.Linear(decoder_dim, 1)
+        self.full_att = nn.Linear(attention_dim, 1)  # linear layer to calculate values to be softmax-ed
+        self.relu = nn.ReLU() # Relu function: this can change.
+        self.tanh = nn.Tanh()
+        self.softmax = nn.Softmax(dim=1)  # softmax layer to calculate weights
+        self.sigmoidB = nn.Sigmoid()
+
+    def forward(self, encoder_out, decoder_hidden):
+        """
+        Forward propagation.
+
+        :param encoder_out: encoded images, a tensor of dimension (batch_size, number_of_inputs (49), encoder_dim)
+        :param decoder_hidden: previous decoder output, a tensor of dimension (batch_size, decoder_dim)
+        :return: attention weighted encoding, weights
+        """
+        # we doen dit dus ook met batch sizes, de lengte van batch
+        #att1 = self.encoder_att(encoder_out)  # (batch_size, num_pixels, attention_dim) #DIt is onze source state 
+        #att2 = self.decoder_att(decoder_hidden)  # (batch_size, attention_dim) #Dit is onze target state
+        #att = self.full_att(self.relu(att1+att2.unsqueeze(1))).squeeze(2)  # (batch_size, num_pixels)
+        #att = torch.mm(att1, att2.unsqueeze(1)) # Is dit de dot attender? 
+        #alpha = self.softmax(att)
+        #alpha = self.softmax(att)
+        alpha = torch.zeros([encoder_out.shape[0],encoder_out.shape[1]]).to(device) 
+        alpha = alpha/49
+        attention_weighted_encoding = (encoder_out * alpha.unsqueeze(2)).sum(dim=1)  # (batch_size, encoder_dim)
+        return attention_weighted_encoding, alpha
+
+class BilinearAttention(nn.Module):
+    """
+    Attention Network. Nothing changed with the previous version. At this moment only MLP attender, not yet Billinear or dotattender
     """
 
     def __init__(self, encoder_dim, decoder_dim, attention_dim):
@@ -101,7 +143,7 @@ class BilinearAttention(nn.Module):
         self.encoder_att = nn.Linear(encoder_dim, attention_dim)  # linear layer to transform bipyramidal to attention input
         self.decoder_att = nn.Linear(decoder_dim, attention_dim)  # linear layer to transform decoder's output
         self.extra_dim=nn.Linear(1,49)
-        self.Bilinear_att = nn.Bilinear(attention_dim , attention_dim, attention_dim)
+        self.Bilinear_att = nn.Bilinear(attention_dim , attention_dim, 1)
         self.full_att = nn.Linear(attention_dim, 1)  # linear layer to calculate values to be softmax-ed
         self.relu = nn.ReLU() # Relu function: this can change.
         self.softmax = nn.Softmax(dim=1)  # softmax layer to calculate weights
@@ -120,7 +162,51 @@ class BilinearAttention(nn.Module):
         att2 = self.decoder_att(decoder_hidden)
         #att2.expand(60,49,512)
         omzetting = att2.unsqueeze(1).expand_as(att1).contiguous()
-        att = self.full_att(self.relu(self.Bilinear_att(att1,omzetting))).squeeze(2)
+        # att = self.full_att(self.relu(self.Bilinear_att(att1,omzetting))).squeeze(2)
+        att = self.Bilinear_att(att1,omzetting).squeeze(2)
+        #att = torch.mm(att1, att2.unsqueeze(1)) # Is dit de dot attender? 
+        alpha = self.softmax(att)
+        attention_weighted_encoding = (encoder_out * alpha.unsqueeze(2)).sum(dim=1)  # (batch_size, encoder_dim)
+        return attention_weighted_encoding, alpha
+
+class ConcatAttention(nn.Module):
+    """
+    Attention Network. Nothing changed with the previous version. At this moment only MLP attender, not yet Billinear or dotattender
+    """
+
+    def __init__(self, encoder_dim, decoder_dim, attention_dim):
+        """
+        :param encoder_dim: feature size of encoded images=> after bipyramidal encoder this is 49 
+        :param decoder_dim: size of decoder's RNN => normal 512 
+        :param attention_dim: size of the attention network => 512
+        """
+        super(ConcatAttention, self).__init__() 
+        self.encoder_att = nn.Linear(encoder_dim, attention_dim)  # linear layer to transform bipyramidal to attention input
+        self.decoder_att = nn.Linear(decoder_dim, attention_dim)  # linear layer to transform decoder's output
+        self.concat_att= nn.Linear(2*attention_dim,1)
+        self.full_att = nn.Linear(attention_dim, 1)  # linear layer to calculate values to be softmax-ed
+        self.relu = nn.ReLU() # Relu function: this can change.
+        self.tanh = nn.Tanh()
+        self.softmax = nn.Softmax(dim=1)  # softmax layer to calculate weights
+       
+
+    def forward(self, encoder_out, decoder_hidden):
+        """
+        Forward propagation.
+
+        :param encoder_out: encoded images, a tensor of dimension (batch_size, number_of_inputs (49), encoder_dim)
+        :param decoder_hidden: previous decoder output, a tensor of dimension (batch_size, decoder_dim)
+        :return: attention weighted encoding, weights
+        """
+        
+        att1 = self.encoder_att(encoder_out)  # (batch_size, num_pixels, attention_dim) #DIt is onze source state 
+        att2 = self.decoder_att(decoder_hidden)
+        
+        #att2.expand(60,49,512)
+        omzetting = att2.unsqueeze(1).expand_as(att1).contiguous()
+        # att = self.full_att(self.relu(self.Bilinear_att(att1,omzetting))).squeeze(2)
+        concat= torch.cat((att1, omzetting), 2)
+        att = self.tanh(self.concat_att(concat).squeeze(2))
         #att = torch.mm(att1, att2.unsqueeze(1)) # Is dit de dot attender? 
         alpha = self.softmax(att)
         attention_weighted_encoding = (encoder_out * alpha.unsqueeze(2)).sum(dim=1)  # (batch_size, encoder_dim)
@@ -273,6 +359,7 @@ class DecoderWithAttention(nn.Module):
         return h, c
 
     def forward(self, encoder_out, encoded_captions, caption_lengths):
+        
         """
         Forward propagation.
 
@@ -326,3 +413,7 @@ class DecoderWithAttention(nn.Module):
             alphas[:batch_size_t, t, :] = alpha
 
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind, recover_ind
+
+
+
+

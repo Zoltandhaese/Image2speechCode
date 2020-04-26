@@ -11,10 +11,10 @@ from datasets import *
 from utils import *
 from nltk.translate.bleu_score import corpus_bleu
 import argparse
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--CUDA', default= True )
-parser.add_argument('--data_path', type = str, default='dataset') #
+parser.add_argument('--data_path', type = str, default='dataset')
 parser.add_argument('--save_path',type = str, default='results')
 parser.add_argument('--word_map_file',type = str, default = 'dataset/caps_dic.pickle')
 parser.add_argument('--emb_dim', type = int, default= 512)
@@ -23,7 +23,7 @@ parser.add_argument('--decoder_dim',type=int,default=512)
 parser.add_argument('--dropout', type = float, default= 0.2)
 
 parser.add_argument('--start_epoch', type = int, default= 0)
-parser.add_argument('--epochs', type = int, default= 30,help=' number of epochs to train for (if early stopping is not triggered)')
+parser.add_argument('--epochs', type = int, default= 15,help=' number of epochs to train for (if early stopping is not triggered)')
 parser.add_argument('--batch_size', type = int, default= 60)
 
 parser.add_argument('--workers', type = int, default= 0, help='for data-loading')
@@ -132,12 +132,12 @@ def main(args):
             file.write(info)    
         #print('BLEU4: ' + bleu4)
         #print('best_bleu4 '+ best_bleu4)
-        #if bleu4>best_bleu4:
+        if bleu4>best_bleu4:
 
-        best_bleu4=bleu4
+            best_bleu4=bleu4
             # torch.save(encoder.state_dict(),'model/encoder.pth')
             # torch.save(decoder.state_dict(),'model/decoder.pth')
-        save_checkpoint(epoch, encoder, decoder, encoder_optimizer,
+            save_checkpoint(epoch, encoder, decoder, encoder_optimizer,
                             decoder_optimizer, bleu4)
 
 
@@ -176,11 +176,22 @@ def train(train_loader,encoder, decoder, criterion,encoder_optimizer,decoder_opt
         if args.CUDA:
             imgs = imgs.cuda()
             caps = caps.cuda().long()
-            caplens = caplens.cuda() 
+            caplens = caplens.cuda()
         else:
             caps= caps.long()     
-       
+
+        #imgs_new=torch.zeros((imgs.shape[0],196,512))
+        #for i in range(0,imgs.shape[0]):
+        #    hulp = torch.zeros((196,512))
+        #    for j in range(0,196):
+        #        new_ind=((j+1)*14 % 197) - 1
+        #        hulp[new_ind][:]=imgs[i][j]
+        #    imgs_new[i]=hulp
+
+        #imgs= imgs_new.to(device)
         encoded_imgs = encoder(imgs)
+        #het is dus de bedoeling om een rotatie door te voeren naar rechts. 
+       
         scores, caps_sorted, decode_lengths, alphas, sort_ind, recover_ind = decoder(encoded_imgs, caps, caplens) #A lot of information coming from the decoder.
 
         # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
