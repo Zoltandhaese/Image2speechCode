@@ -91,7 +91,7 @@ def save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimize
              'decoder': decoder,
              'encoder_optimizer': encoder_optimizer,
              'decoder_optimizer': decoder_optimizer}
-    filename = 'Checkpoint_Concat_' + str(epoch) + '.pth.tar'
+    filename = 'Checkpoint_concat3' + str(epoch) + '.pth.tar'
     torch.save(state, filename)
 
 
@@ -201,7 +201,7 @@ def validate(val_loader,encoder, decoder, criterion,best_bleu,args):
             scores_copy = scores.clone()
             scores = pack_padded_sequence(scores, decode_lengths, batch_first=True)[0]
             targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)[0]           
-            """
+            
             # Calculate loss
             loss = criterion(scores, targets.squeeze(1))
 
@@ -222,7 +222,7 @@ def validate(val_loader,encoder, decoder, criterion,best_bleu,args):
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                       'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})\t'.format(i, len(val_loader), batch_time=batch_time,
                                                                                 loss=losses, top5=top5accs))
-            """
+            
 
             # Store references (true captions), and hypothesis (prediction) for each image
             # If for n images, we have n hypotheses, and references a, b, c... for each image, we need -
@@ -317,4 +317,4 @@ def validate(val_loader,encoder, decoder, criterion,best_bleu,args):
             file.write(info)
         """
 
-    return bleu4
+    return loss
